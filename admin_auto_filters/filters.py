@@ -1,35 +1,35 @@
 """Defines autocomplete filters and helper functions for the admin."""
 
 import warnings
+
 from django.contrib.admin import SimpleListFilter
 from django.contrib.admin.utils import prepare_lookup_value
+from django.contrib.admin.widgets import AutocompleteSelect as BaseAutocompleteSelect
 from django.contrib.admin.widgets import (
-    AutocompleteSelect as BaseAutocompleteSelect,
     AutocompleteSelectMultiple as BaseAutocompleteSelectMultiple,
 )
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import ForeignObjectRel
-from django.contrib.admin.widgets import AutocompleteSelect as Base
-from django import forms
-from django.contrib import admin
-from django.db.models.fields.related import ForeignObjectRel
 from django.db.models.constants import LOOKUP_SEP  # this is '__'
 from django.db.models.fields.related_descriptors import (
-    ReverseManyToOneDescriptor, ManyToManyDescriptor,
+    ManyToManyDescriptor,
+    ReverseManyToOneDescriptor,
 )
 from django.forms import ModelChoiceField, ModelMultipleChoiceField
-from django.forms.widgets import Media, MEDIA_TYPES, media_property
+from django.forms.widgets import MEDIA_TYPES, Media, media_property
 from django.shortcuts import reverse
-from django import VERSION as DJANGO_VERSION
+
 
 class AutocompleteSelect(BaseAutocompleteSelect):
     """A customize AutocompleteSelect that allows a custom URL."""
 
-    def __init__(self, rel, admin_site, attrs=None, choices=(), using=None, custom_url=None):
+    def __init__(
+        self, rel, admin_site, attrs=None, choices=(), using=None, custom_url=None
+    ):
         """Initialize class variables for an AutocompleteSelect object."""
         self.custom_url = custom_url
         super().__init__(rel, admin_site, attrs, choices, using)
-    
+
     def get_url(self):
         """Specifies the URL to be used to fetch the autocomplete list."""
         return self.custom_url if self.custom_url else super().get_url()
@@ -38,7 +38,9 @@ class AutocompleteSelect(BaseAutocompleteSelect):
 class AutocompleteSelectMultiple(BaseAutocompleteSelectMultiple):
     """A customize AutocompleteSelectMultiple that allows a custom URL."""
 
-    def __init__(self, rel, admin_site, attrs=None, choices=(), using=None, custom_url=None):
+    def __init__(
+        self, rel, admin_site, attrs=None, choices=(), using=None, custom_url=None
+    ):
         """Initialize class variables for an AutocompleteSelectMultiple object."""
         self.custom_url = custom_url
         super().__init__(rel, admin_site, attrs, choices, using)
@@ -54,6 +56,7 @@ class AutocompleteFilterMeta(type(SimpleListFilter)):
     When Python 3.5 support is no longer required, this could possibly be
     replaced by a parent class using __init_subclass__, rather than a metaclass.
     """
+
     def __init__(self, *args, **kwargs):
         """
         Initialize class variables for class `self`, for
@@ -99,32 +102,32 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
     # ########## Basic configuration ########## #
 
     field_name = None
-    field_pk = 'pk'
+    field_pk = "pk"
     form_field = None
     form_widget = None
     is_placeholder_title = False
     label_by = None
     multi_select = False
     # parameter_name =  # Default set in metaclass; can override by setting in subclass body
-    template = 'django-admin-autocomplete-filter/autocomplete-filter.html'  # overrides SimpleListFilter
+    template = "django-admin-autocomplete-filter/autocomplete-filter.html"  # overrides SimpleListFilter
     # title =  # Default set in metaclass; can override by setting in subclass body
     use_pk_exact = True
     view_name = None
     widget_attrs = {}
+    help_text = ""
 
     class Media:
         """
         A class for defining static files to be loaded on pages using
         this filter.
         """
+
         js = (
-            'admin/js/jquery.init.js',
-            'django-admin-autocomplete-filter/js/autocomplete_filter_qs.js',
+            "admin/js/jquery.init.js",
+            "django-admin-autocomplete-filter/js/autocomplete_filter_qs.js",
         )
         css = {
-            'screen': (
-                'django-admin-autocomplete-filter/css/autocomplete-fix.css',
-            ),
+            "screen": ("django-admin-autocomplete-filter/css/autocomplete-fix.css",),
         }
 
     def __init__(self, request, params, model, model_admin):
@@ -132,8 +135,10 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
 
         # Check configuration
         self.check_field_name()
-        if hasattr(self, 'rel_model'):
-            warnings.warn('The rel_model attribute is no longer used.', DeprecationWarning)
+        if hasattr(self, "rel_model"):
+            warnings.warn(
+                "The rel_model attribute is no longer used.", DeprecationWarning
+            )
 
         # Init via parent class (after checking field_name)
         super().__init__(request, params, model, model_admin)
@@ -141,23 +146,10 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         # Instance vars not used, to make argument passing explicit
         rel_model = self.get_rel_model(model)
         ultimate_field_name = self.get_ultimate_field_name()
-        remote_field = rel_model._meta.get_field(ultimate_field_name).remote_field
+        remote_field = model._meta.get_field(ultimate_field_name)
+        # remote_field = model._meta.get_field(self.field_name)
         widget = self.get_widget(request, model_admin, remote_field)
         field = self.get_field(request, model_admin, rel_model, widget)
-        #if self.rel_model:
-        #    model = self.rel_model
-
-        #remote_field = model._meta.get_field(self.field_name)
-
-        #widget = AutocompleteSelect(remote_field,
-        #                            model_admin.admin_site,
-        #                            custom_url=self.get_autocomplete_url(request, model_admin),)
-        #form_field = self.get_form_field()
-        #field = form_field(
-        #    queryset=self.get_queryset_for_field(model, self.field_name),
-        #    widget=widget,
-        #    required=False,
-        #)
 
         self._add_media(model_admin, widget)
         attrs = self.get_attrs(request, model_admin)
@@ -187,12 +179,12 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         query_parameter = cls.field_name
         if cls.multi_select:
             if cls.use_pk_exact:  # note that "exact" is a misnomer here
-                query_parameter += '__{}__in'.format(cls.field_pk)
+                query_parameter += "__{}__in".format(cls.field_pk)
             else:
-                query_parameter += '__in'.format(cls.field_pk)
+                query_parameter += "__in".format(cls.field_pk)
         else:
             if cls.use_pk_exact:
-                query_parameter += '__{}__exact'.format(cls.field_pk)
+                query_parameter += "__{}__exact".format(cls.field_pk)
             else:
                 pass
         return query_parameter
@@ -201,7 +193,7 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
     def get_title(cls):
         """Get the title based on class variables."""
         if cls.title is None:
-            return str(cls.field_name).replace('__', ' - ').replace('_', ' ').title()
+            return str(cls.field_name).replace("__", " - ").replace("_", " ").title()
         else:
             return cls.title
 
@@ -218,10 +210,13 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         Check that field_name has been defined.
         Don't call this at AutocompleteFilter creation time - would need to be on subclasses.
         """
-        if not hasattr(cls, 'field_name') or cls.field_name is None or cls.field_name == '':
+        if (
+            not hasattr(cls, "field_name")
+            or cls.field_name is None
+            or cls.field_name == ""
+        ):
             raise ImproperlyConfigured(
-                "The list filter '%s' does not specify a 'field_name'."
-                % cls.__name__
+                "The list filter '%s' does not specify a 'field_name'." % cls.__name__
             )
 
     @classmethod
@@ -257,7 +252,9 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
                     else:
                         value = attr
                 else:
-                    raise ValueError('Invalid label_item specified: %s' % str(label_item))
+                    raise ValueError(
+                        "Invalid label_item specified: %s" % str(label_item)
+                    )
                 return value
 
         return LabelledModelChoiceField
@@ -265,10 +262,10 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
     def get_attrs(self, request, model_admin):
         """Gather the HTML tag attrs from all sources."""
         attrs = self.widget_attrs.copy()
-        attrs['id'] = 'id-%s-daaf-filter' % self.parameter_name
+        attrs["id"] = "id-%s-daaf-filter" % self.parameter_name
         if self.is_placeholder_title:
             # Upper case letter P as dirty hack for bypass django2 widget force placeholder value as empty string ("")
-            attrs['data-Placeholder'] = self.title
+            attrs["data-Placeholder"] = self.title
         return attrs
 
     @staticmethod
@@ -279,9 +276,15 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         except AttributeError:
             field_desc = model._meta.get_field(name)
         if isinstance(field_desc, ManyToManyDescriptor):
-            related_model = field_desc.rel.related_model if field_desc.reverse else field_desc.rel.model
+            related_model = (
+                field_desc.rel.related_model
+                if field_desc.reverse
+                else field_desc.rel.model
+            )
         elif isinstance(field_desc, ReverseManyToOneDescriptor):
-            related_model = field_desc.rel.related_model  # look at field_desc.related_manager_cls()?
+            related_model = (
+                field_desc.rel.related_model
+            )  # look at field_desc.related_manager_cls()?
         elif isinstance(field_desc, ForeignObjectRel):
             # includes ManyToOneRel, ManyToManyRel
             # also includes OneToOneRel - not sure how this would be used
@@ -336,17 +339,22 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
     def _add_media(self, model_admin, widget):
         """Update the relevant ModelAdmin Media class, creating it if needed."""
 
-        if not hasattr(model_admin, 'Media'):
-            model_admin.__class__.Media = type('Media', (object,), dict())
+        if not hasattr(model_admin, "Media"):
+            model_admin.__class__.Media = type("Media", (object,), dict())
             model_admin.__class__.media = media_property(model_admin.__class__)
 
         def _get_media(obj):
-            return Media(media=getattr(obj, 'Media', None))
+            return Media(media=getattr(obj, "Media", None))
 
-        media = _get_media(model_admin) + widget.media + _get_media(AutocompleteFilter) + _get_media(self)
+        media = (
+            _get_media(model_admin)
+            + widget.media
+            + _get_media(AutocompleteFilter)
+            + _get_media(self)
+        )
 
         for name in MEDIA_TYPES:
-            setattr(model_admin.Media, name, getattr(media, '_' + name))
+            setattr(model_admin.Media, name, getattr(media, "_" + name))
 
     def has_output(self):
         """Indicate that some choices will be output for this filter."""
@@ -359,7 +367,7 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
     def prepare_value(self):
         """Prepare the input string value for use."""
         query_parameter = self.get_query_parameter()
-        params = self.used_parameters.get(self.parameter_name, '')
+        params = self.used_parameters.get(self.parameter_name, "")
         return prepare_lookup_value(query_parameter, params)
 
     def queryset(self, request, queryset):
@@ -370,7 +378,9 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         value = self.value()
         if value:
             query_parameter = self.get_query_parameter()
-            prepared_value = prepare_lookup_value(query_parameter, value)  # FIXME combine with value() and prepare_value() ?
+            prepared_value = prepare_lookup_value(
+                query_parameter, value
+            )  # FIXME combine with value() and prepare_value() ?
             return queryset.filter(**{query_parameter: prepared_value})
         else:
             return queryset
@@ -380,9 +390,7 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         prepared_value = self.prepare_value()
         # FIXME check that value is okay before using, make e=1 if not?
         return field.widget.render(
-            name=self.parameter_name,
-            value=prepared_value,
-            attrs=attrs
+            name=self.parameter_name, value=prepared_value, attrs=attrs
         )
 
     def get_autocomplete_url(self, request, model_admin):
@@ -406,24 +414,26 @@ def AutocompleteFilterFactory(title, field_name, **kwargs):
 
     # Check for valid kwargs
     attrs = [
-        attr for attr in dir(AutocompleteFilter)
+        attr
+        for attr in dir(AutocompleteFilter)
         if not callable(getattr(AutocompleteFilter, attr))
-        and not attr.startswith('__')
-        and attr not in ['title', 'field_name']
+        and not attr.startswith("__")
+        and attr not in ["title", "field_name"]
     ]
     diff = set(kwargs.keys()) - set(attrs)
-    if 'viewname' in kwargs.keys():
+    if "viewname" in kwargs.keys():
         # This check can be removed in a future version
-        warnings.warn('The viewname argument is deprecated. Use view_name instead.', DeprecationWarning)
-        kwargs.setdefault('view_name', kwargs['viewname'])
-        kwargs.pop('viewname')
+        warnings.warn(
+            "The viewname argument is deprecated. Use view_name instead.",
+            DeprecationWarning,
+        )
+        kwargs.setdefault("view_name", kwargs["viewname"])
+        kwargs.pop("viewname")
     elif diff:
-        raise ValueError('Invalid argument(s): ' + str(diff))
+        raise ValueError("Invalid argument(s): " + str(diff))
 
     # Create new filter class
-    base = {'title': title, 'field_name': field_name}
+    base = {"title": title, "field_name": field_name}
     return AutocompleteFilterMeta(
-        'GeneratedAutocompleteFilter',
-        (AutocompleteFilter,),
-        {**base, **kwargs}
+        "GeneratedAutocompleteFilter", (AutocompleteFilter,), {**base, **kwargs}
     )
