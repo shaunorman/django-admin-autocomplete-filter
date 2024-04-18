@@ -146,7 +146,7 @@ class AutocompleteFilter(SimpleListFilter, metaclass=AutocompleteFilterMeta):
         # Instance vars not used, to make argument passing explicit
         rel_model = self.get_rel_model(model)
         ultimate_field_name = self.get_ultimate_field_name()
-        remote_field = model._meta.get_field(ultimate_field_name)
+        remote_field = rel_model._meta.get_field(ultimate_field_name)
         # remote_field = model._meta.get_field(self.field_name)
         widget = self.get_widget(request, model_admin, remote_field)
         field = self.get_field(request, model_admin, rel_model, widget)
